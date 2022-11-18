@@ -1,0 +1,96 @@
+app-id: org.freedesktop.Sdk.Extension.dotnet7
+branch: '22.08'
+runtime: org.freedesktop.Sdk
+runtime-version: '22.08'
+sdk: org.freedesktop.Sdk
+build-extension: true
+separate-locales: false
+appstream-compose: false
+modules:
+  - name: libunwind
+    rm-configure: true
+    build-options:
+      cflags: -fcommon
+      prefix: /usr/lib/sdk/dotnet7
+    cleanup:
+      - /include
+      - /pkgconfig
+      - '*.a'
+      - '*.la'
+      - '*ptrace.so*'
+      - '*setjmp.so*'
+    sources:
+      - type: archive
+        url: https://download.savannah.nongnu.org/releases/libunwind/libunwind-1.5.0.tar.gz
+        sha256: 90337653d92d4a13de590781371c604f9031cdb50520366aa1e3a91e1efb1017
+      - type: script
+        commands:
+          - autoreconf -sif
+        dest-filename: autogen.sh
+
+  - name: dotnet-sdk
+    buildsystem: simple
+    build-commands:
+      - mkdir -p /usr/lib/sdk/dotnet7/{bin,lib}
+      - cp -r * /usr/lib/sdk/dotnet7/lib
+      - ln -s /usr/lib/sdk/dotnet7/lib/dotnet /usr/lib/sdk/dotnet7/bin/dotnet
+    sources:
+      - type: archive
+        only-arches: [x86_64]
+        url: https://dotnetcli.blob.core.windows.net/dotnet/Sdk/7.0.100/dotnet-sdk-7.0.100-linux-x64.tar.gz
+        sha256: 5d4a58eeca1a4ab095b55e6486b1278147b0ab121ce883b2bcde3d3626c9a81c
+        x-checker-data:
+          type: html
+          url: https://dotnetcli.blob.core.windows.net/dotnet/Sdk/6.0/latest.version
+          version-pattern: ^([\d\.a-z-]+)$
+          url-template: https://dotnetcli.blob.core.windows.net/dotnet/Sdk/$version/dotnet-sdk-$version-linux-x64.tar.gz
+      # - type: archive
+      #   only-arches: [aarch64]
+      #   url: https://dotnetcli.blob.core.windows.net/dotnet/Sdk/6.0.402/dotnet-sdk-6.0.402-linux-arm64.tar.gz
+      #   sha256: a5fe4d69a9c83f37509129c25dcf324d8407a60b5e7e8ec24a5f925550139c74
+      #   x-checker-data:
+      #     type: html
+      #     url: https://dotnetcli.blob.core.windows.net/dotnet/Sdk/6.0/latest.version
+      #     version-pattern: ^([\d\.a-z-]+)$
+      #     url-template: https://dotnetcli.blob.core.windows.net/dotnet/Sdk/$version/dotnet-sdk-$version-linux-arm64.tar.gz
+  - name: scripts
+    buildsystem: simple
+    build-commands:
+      - mkdir -p /usr/lib/sdk/dotnet7/share/appdata
+      - cp install.sh install-sdk.sh /usr/lib/sdk/dotnet7/bin
+      - cp enable.sh /usr/lib/sdk/dotnet7
+      - cp org.freedesktop.Sdk.Extension.dotnet7.appdata.xml ${FLATPAK_DEST}/share/appdata
+      - appstream-compose --basename=org.freedesktop.Sdk.Extension.dotnet7 --prefix=${FLATPAK_DEST}
+        --origin=flatpak org.freedesktop.Sdk.Extension.dotnet7
+    sources:
+      - type: script
+        commands:
+          - mkdir -p /app/lib/dotnet
+          - mkdir -p /app/bin
+          - cp -L /usr/lib/sdk/dotnet7/lib/libunwind{,-coredump,-$FLATPAK_ARCH}.so
+            /app/lib/dotnet
+          - cp -r /usr/lib/sdk/dotnet7/lib/{dotnet,host,shared} /app/lib/dotnet
+          - ln -s /app/lib/dotnet/dotnet /app/bin/dotnet
+        dest-filename: install.sh
+      - type: script
+        commands:
+          - /usr/lib/sdk/dotnet7/bin/install.sh
+          - cp -r /usr/lib/sdk/dotnet7/lib/sdk /app/lib/dotnet
+        dest-filename: install-sdk.sh
+      - type: script
+        commands:
+          - export PATH=$PATH:/usr/lib/sdk/dotnet7/bin
+          - export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/lib/sdk/dotnet7/lib
+          - export DOTNET_CLI_TELEMETRY_OPTOUT=true
+          - export DOTNET_NOLOGO=true
+          - export DOTNET_ROOT=/usr/lib/sdk/dotnet7/lib
+        dest-filename: enable.sh
+      - type: file
+        path: org.freedesktop.Sdk.Extension.dotnet7.appdata.xml
+sdk-extensions:
+  - org.freedesktop.Sdk.Extension.dotnet7
+build-options:
+  - append-path: /usr/lib/sdk/dotnet7/bin
+    append-ld-library-path: /usr/lib/sdk/dotnet7/lib
+    env:
+      - PKG_CONFIG_PATH: /app/lib/pkgconfig:/app/share/pkgconfig:/usr/lib/pkgconfig:/usr/share/pkgconfig:/usr/lib/sdk/dotnet7/lib/pkgconfig

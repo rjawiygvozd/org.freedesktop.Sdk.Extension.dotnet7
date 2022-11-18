@@ -1,6 +1,9 @@
-# Dotnet 6 SDK extension
+# Dotnet 7 SDK extension
 
-## How to use
+# How to use
+flatpak-builder build-dir org.freedesktop.Sdk.Extension.dotnet7.yaml --force-clean --disable-rofiles-fuse --user --install
+
+# Original readme:
 You need to add following lines to flatpak manifest:
 ```json
 "sdk-extensions": [
